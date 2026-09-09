@@ -27,6 +27,9 @@
     var data = new FormData(form);
     data.append("_subject", "New message from coachnichols.tech");
     data.append("_template", "table");
+    // Set reply-to to the visitor's email so replies go straight to them.
+    var emailField = form.querySelector('[name="email-2"], input[type="email"]');
+    if (emailField && emailField.value) data.append("_replyto", emailField.value);
 
     fetch(AJAX_ENDPOINT, {
       method: "POST",
