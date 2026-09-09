@@ -3,7 +3,7 @@
    exist on GitHub Pages. This intercepts that, sends the data to FormSubmit via
    AJAX, and reuses the page's existing Webflow success/error message blocks. */
 (function () {
-  var AJAX_ENDPOINT = "https://formsubmit.co/ajax/coachnicholstech@gmail.com";
+  var AJAX_ENDPOINT = "https://formsubmit.co/ajax/752e61c8a97c138f3867839cb0d281b6";
 
   function onReady(fn) {
     if (document.readyState !== "loading") fn();
