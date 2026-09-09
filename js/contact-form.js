@@ -25,7 +25,9 @@
     var s = document.createElement("style");
     s.id = "cf-styles";
     s.textContent =
-      ".cf-error{color:#c0392b;font-size:.85em;line-height:1.3;margin:.25em 0 .6em;display:none;}" +
+      ".cf-error{color:#c0392b !important;font-size:13px !important;font-weight:400 !important;" +
+      "line-height:1.35 !important;letter-spacing:normal !important;text-transform:none !important;" +
+      "font-family:inherit;margin:4px 0 10px !important;display:none;}" +
       ".cf-invalid{border-color:#c0392b !important;box-shadow:0 0 0 1px #c0392b inset;}";
     document.head.appendChild(s);
   }
