@@ -1,22 +1,51 @@
 /* Contact form handler for static hosting.
-   Webflow's bundled JS tries to submit forms to Webflow's servers, which don't
-   exist on GitHub Pages. This intercepts that, sends the data to FormSubmit via
-   AJAX, and reuses the page's existing Webflow success/error message blocks. */
+   Webflow's bundled JS binds a delegated "submit" handler on `document` and tries
+   to POST forms to Webflow's servers, which don't exist on GitHub Pages. We attach
+   our own handler on `document` in the CAPTURE phase so it runs before Webflow's,
+   block it, and send the data to FormSubmit via AJAX instead — reusing the page's
+   existing Webflow success/error message blocks. */
 (function () {
   var AJAX_ENDPOINT = "https://formsubmit.co/ajax/752e61c8a97c138f3867839cb0d281b6";
+  var CONTACT_EMAIL = "coachnicholstech@gmail.com";
 
   function onReady(fn) {
     if (document.readyState !== "loading") fn();
     else document.addEventListener("DOMContentLoaded", fn);
   }
 
-  function siblingMsg(form, cls) {
-    var parent = form.parentNode;
-    if (!parent) return null;
-    return parent.querySelector(":scope > ." + cls) || parent.querySelector("." + cls);
+  function isOurForm(el) {
+    return el && el.tagName === "FORM" &&
+      (el.id === "email-form" || el.getAttribute("name") === "email-form");
   }
 
-  function handle(form) {
+  function wrap(form) { return form.closest(".w-form") || form.parentNode; }
+  function box(form, cls) { var w = wrap(form); return w ? w.querySelector("." + cls) : null; }
+
+  function showSuccess(form) {
+    var done = box(form, "w-form-done");
+    var fail = box(form, "w-form-fail");
+    if (fail) fail.style.display = "none";
+    form.style.display = "none";
+    if (done) {
+      done.style.display = "block";
+    } else {
+      var d = document.createElement("div");
+      d.className = "w-form-done";
+      d.textContent = "Thanks! Your message was sent — I'll be in touch soon.";
+      d.style.cssText = "display:block;padding:1rem;margin-top:1rem;";
+      wrap(form).appendChild(d);
+    }
+    console.log("[contact-form] submitted successfully");
+  }
+
+  function showFail(form) {
+    var fail = box(form, "w-form-fail");
+    if (fail) fail.style.display = "block";
+    else alert("Sorry, something went wrong. Please email " + CONTACT_EMAIL + " directly.");
+    console.warn("[contact-form] submission failed");
+  }
+
+  function send(form) {
     var btn = form.querySelector('[type="submit"]');
     var original = btn ? btn.value : null;
     if (btn) {
@@ -25,54 +54,37 @@
     }
 
     var data = new FormData(form);
-    data.append("_subject", "New message from coachnichols.tech");
-    data.append("_template", "table");
-    // Set reply-to to the visitor's email so replies go straight to them.
+    data.set("_subject", "New message from coachnichols.tech");
+    data.set("_template", "table");
     var emailField = form.querySelector('[name="email-2"], input[type="email"]');
-    if (emailField && emailField.value) data.append("_replyto", emailField.value);
+    if (emailField && emailField.value) data.set("_replyto", emailField.value);
 
-    fetch(AJAX_ENDPOINT, {
-      method: "POST",
-      headers: { Accept: "application/json" },
-      body: data
-    })
+    fetch(AJAX_ENDPOINT, { method: "POST", headers: { Accept: "application/json" }, body: data })
       .then(function (r) { return r.json(); })
       .then(function (res) {
-        var ok = res && (res.success === true || res.success === "true");
-        var done = siblingMsg(form, "w-form-done");
-        var fail = siblingMsg(form, "w-form-fail");
-        if (ok) {
-          form.style.display = "none";
-          if (done) done.style.display = "block";
-          if (fail) fail.style.display = "none";
+        if (res && (res.success === true || res.success === "true")) {
+          showSuccess(form);
           form.reset();
-        } else if (fail) {
-          fail.style.display = "block";
+        } else {
+          showFail(form);
         }
       })
-      .catch(function () {
-        var fail = siblingMsg(form, "w-form-fail");
-        if (fail) fail.style.display = "block";
-      })
-      .finally(function () {
-        if (btn) { btn.value = original; btn.disabled = false; }
-      });
+      .catch(function () { showFail(form); })
+      .finally(function () { if (btn) { btn.value = original; btn.disabled = false; } });
+  }
+
+  function intercept(e) {
+    if (!isOurForm(e.target)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    console.log("[contact-form] intercepted submit, sending to FormSubmit…");
+    send(e.target);
   }
 
   onReady(function () {
-    var forms = document.querySelectorAll('form#email-form, form[name="email-form"]');
-    Array.prototype.forEach.call(forms, function (form) {
-      // Capture phase + stopImmediatePropagation runs before Webflow's handler
-      // and prevents it from firing.
-      form.addEventListener(
-        "submit",
-        function (e) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          handle(form);
-        },
-        true
-      );
-    });
+    // Capture phase on document → runs before Webflow's delegated bubble handler.
+    document.addEventListener("submit", intercept, true);
+    var n = document.querySelectorAll('form#email-form, form[name="email-form"]').length;
+    console.log("[contact-form] handler ready, " + n + " form(s) on page");
   });
 })();
